@@ -90,97 +90,41 @@ def get_coupons():
 
     params = {
         "api_token": API_KEY,
-        "bookmakers": "2",
-        "markets": "1",
-        "include": "fixture;market;bookmaker"
+        "bookmakers": "2",   # (bet365 hvis ID=2 er korrekt i din plan)
+        "markets": "1",      # match odds
+        "include": "fixture,bookmaker,market",
+        "per_page": 10       # begræns så du får “aktive” relevante kampe
     }
 
-    res = requests.get(url, params=params)
-    data = res.json()
+    r = requests.get(url, params=params)
+    data = r.json()
 
-    grouped = {}
-
-    for item in data.get("data", []):
-
-        fixture = item.get("fixture")
-        if not fixture:
-            continue
-
-        match = fixture.get("name")
-
-        if match not in grouped:
-            grouped[match] = {
-                "match": match,
-                "home": None,
-                "draw": None,
-                "away": None
-            }
-
-        label = item.get("label")
-        value = item.get("value")
-
-        if value is None:
-            continue
-
-        value = float(value)
-
-        if label == "1":
-            grouped[match]["home"] = value
-        elif label == "X":
-            grouped[match]["draw"] = value
-        elif label == "2":
-            grouped[match]["away"] = value
-
-    return {"coupons": list(grouped.values())[:10]}
-
-@app.get("/coupons/live")
-def get_coupons_live():
-
-    url = "https://api.sportmonks.com/v3/football/odds/pre-match"
-
-    params = {
-        "api_token": API_KEY,
-        "bookmakers": "2",
-        "markets": "1",
-        "include": "fixture;market;bookmaker"
-    }
-
-    res = requests.get(url, params=params)
-    data = res.json()
-
-    grouped = {}
+    coupons = []
 
     for item in data.get("data", []):
+        try:
+            odds = item.get("odds", [])
 
-        fixture = item.get("fixture")
-        if not fixture:
+            home = draw = away = None
+
+            for o in odds:
+                if o.get("label") == "1":
+                    home = o.get("value")
+                elif o.get("label") == "X":
+                    draw = o.get("value")
+                elif o.get("label") == "2":
+                    away = o.get("value")
+
+            fixture = item.get("fixture", {})
+
+            coupons.append({
+                "match": fixture.get("name", "unknown"),
+                "home": home,
+                "draw": draw,
+                "away": away
+            })
+
+        except:
             continue
 
-        match = fixture.get("name")
-        if not match:
-            continue
-
-        if match not in grouped:
-            grouped[match] = {
-                "match": match,
-                "home": None,
-                "draw": None,
-                "away": None
-            }
-
-        label = item.get("label")
-        value = item.get("value")
-
-        if value is None:
-            continue
-
-        value = float(value)
-
-        if label == "1":
-            grouped[match]["home"] = value
-        elif label == "X":
-            grouped[match]["draw"] = value
-        elif label == "2":
-            grouped[match]["away"] = value
-
-    return {"live_coupons": list(grouped.values())[:10]}
+    return {"coupons": coupons}
