@@ -36,12 +36,9 @@ def get_coupons():
 
         bookmakers = item.get("bookmakers", [])
 
-        # find bet365 hvis det findes
         for b in bookmakers:
             if b.get("name", "").lower() == "bet365":
-                markets = b.get("markets", [])
-
-                for m in markets:
+                for m in b.get("markets", []):
                     for s in m.get("selections", []):
 
                         name = s.get("name")
@@ -54,11 +51,11 @@ def get_coupons():
                         elif name == "2":
                             away = odd
 
-        # fallback hvis bet365 ikke findes
         if not home and bookmakers:
             b = bookmakers[0]
             for m in b.get("markets", []):
                 for s in m.get("selections", []):
+
                     name = s.get("name")
                     odd = s.get("odd") or s.get("value")
 
