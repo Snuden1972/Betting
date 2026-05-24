@@ -90,10 +90,10 @@ def get_coupons():
 
     params = {
         "api_token": API_KEY,
-        "bookmakers": "2",   # (bet365 hvis ID=2 er korrekt i din plan)
-        "markets": "1",      # match odds
-        "include": "fixture,bookmaker,market",
-        "per_page": 10       # begræns så du får “aktive” relevante kampe
+        "bookmakers": "2",
+        "markets": "1",
+        "include": "fixture,bookmakers,bookmakers.markets,bookmakers.markets.selections",
+        "per_page": 10
     }
 
     r = requests.get(url, params=params)
@@ -102,29 +102,35 @@ def get_coupons():
     coupons = []
 
     for item in data.get("data", []):
-        try:
-            odds = item.get("odds", [])
 
-            home = draw = away = None
+        fixture = item.get("fixture", {})
+        match_name = fixture.get("name")
 
-            for o in odds:
-                if o.get("label") == "1":
-                    home = o.get("value")
-                elif o.get("label") == "X":
-                    draw = o.get("value")
-                elif o.get("label") == "2":
-                    away = o.get("value")
+        home = draw = away = None
 
-            fixture = item.get("fixture", {})
+        bookmakers = item.get("bookmakers", [])
 
+        for b in bookmakers:
+            for market in b.get("markets", []):
+                for sel in market.get("selections", []):
+
+                    name = sel.get("name")
+                    odd = sel.get("odd") or sel.get("value")
+
+                    if name == "1":
+                        home = odd
+                    elif name == "X":
+                        draw = odd
+                    elif name == "2":
+                        away = odd
+
+        # kun tilføj hvis vi faktisk har odds
+        if match_name and (home or draw or away):
             coupons.append({
-                "match": fixture.get("name", "unknown"),
+                "match": match_name,
                 "home": home,
                 "draw": draw,
                 "away": away
             })
-
-        except:
-            continue
 
     return {"coupons": coupons}
